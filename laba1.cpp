@@ -1,119 +1,129 @@
-﻿#include <iostream>
-#include <string>
-#include <vector>
-#include <windows.h>
-#include <io.h>
-#include <fcntl.h>
+﻿#include <iostream>     
+#include <string>       
+#include <vector>       
+#include <windows.h>    
+#include <locale>       
+#include <clocale>      
 
-using namespace std;
-
-// Проверка на гласную
-bool isVowel(wchar_t c) {
-    wstring vowels = L"аеёиоуыэюяАЕЁИОУЫЭЮЯ";
-    return vowels.find(c) != wstring::npos;
+// Функция проверяет, является ли символ гласной буквой
+bool isVowel(char c) {
+    std::string vowels = "аеёиоуыэюяАЕЁИОУЫЭЮЯ";
+    return vowels.find(c) != std::string::npos;
 }
 
-// Проверка на согласную
-bool isConsonant(wchar_t c) {
-    wstring consonants = L"бвгджзйклмнпрстфхцчшщБВГДЖЗЙКЛМНПРСТФХЦЧШЩ";
-    return consonants.find(c) != wstring::npos;
+// Функция проверяет, является ли символ согласной буквой
+bool isConsonant(char c) {
+    std::string consonants = "бвгджзйклмнпрстфхцчшщБВГДЖЗЙКЛМНПРСТФХЦЧШЩ";
+    return consonants.find(c) != std::string::npos;
 }
 
-// Проверка на цифру
-bool isDigit(wchar_t c) {
-    return c >= L'0' && c <= L'9';
+// Функция проверяет, является ли символ цифрой
+bool isDigitChar(char c) {
+    return c >= '0' && c <= '9';
 }
 
-// Добавление уникального символа
-void addUnique(wstring& row, wchar_t c) {
-    if (row.find(c) == wstring::npos) {
-        row += c;
-    }
+// Функция проверяет, является ли символ знаком
+bool isSymbol(char c) {
+    return !isVowel(c) && !isConsonant(c) && !isDigitChar(c) && c != '@';
 }
 
 int main() {
-    // Настройка Unicode для консоли
-    _setmode(_fileno(stdout), _O_U16TEXT);
-    _setmode(_fileno(stdin), _O_U16TEXT);
+    setlocale(LC_ALL, "Russian");
+    SetConsoleOutputCP(1251);
 
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-
-    wcout << L"Введите строку (до 50 символов):" << endl;
-    wstring input;
-    getline(wcin, input);
+    std::string input;
+    std::cout << "Введите строку:\n";
+    std::getline(std::cin, input);
 
     if (input.length() > 50) {
         input = input.substr(0, 50);
     }
 
-    // Зубчатый массив
-    vector<wstring> jaggedArray(4);
+    //Зубчатый массив
+    std::vector<std::vector<char>> jagged(4);
 
-    for (wchar_t c : input) {
-        if (isVowel(c)) {
-            addUnique(jaggedArray[0], c);
-        }
-        else if (isConsonant(c)) {
-            addUnique(jaggedArray[1], c);
-        }
-        else if (isDigit(c)) {
-            addUnique(jaggedArray[2], c);
-        }
-        else {
-            if (c != L'@') {
-                addUnique(jaggedArray[3], c);
+    // Проходим по каждому символу введённой строки
+    for (char c : input) {
+        int row = -1;
+
+        // Определяем, в какую строку массива поместить символ
+        if (isVowel(c))         row = 0;
+        else if (isConsonant(c)) row = 1;
+        else if (isDigitChar(c)) row = 2;
+        else if (isSymbol(c))    row = 3;
+
+        // Если символ не подошёл
+        if (row == -1) continue;
+
+        // Проверяем, есть ли уже такой символ в соответствующей строке массива
+        bool exists = false;
+        for (char existing : jagged[row]) {
+            if (existing == c) {
+                exists = true;
+                break;
             }
         }
+
+        // Если символа ещё нет — добавляем его в конец строки
+        if (!exists) {
+            jagged[row].push_back(c); 
+        }
     }
 
-    // Вывод массива
-    wcout << L"Массив:" << endl;
+    // Вывод "зубчатого" массива
+    std::cout << "Массив:\n";
     for (int i = 0; i < 4; i++) {
-        for (wchar_t c : jaggedArray[i]) {
-            if (c == L' ') wcout << L"   ";
-            else wcout << c << L" ";
+        for (char c : jagged[i]) {
+            std::cout << c << " ";
         }
-        wcout << endl;
+        std::cout << "\n";
     }
 
-    wcout << L"Результат:" << endl;
+    input += "+123АБВ";
 
-    // Вывод раскрашенной строки
-    for (wchar_t c : input) {
-        if (isVowel(c)) {
-            // Красный текст (4)
-            SetConsoleTextAttribute(hConsole, 4);
-            wcout << c;
-        }
-        else if (isConsonant(c)) {
-            // Синий текст (1)
-            SetConsoleTextAttribute(hConsole, 1);
-            wcout << c;
-        }
-        else if (isDigit(c)) {
-            // Зеленый текст (2)
-            SetConsoleTextAttribute(hConsole, 2);
-            wcout << c;
-        }
-        else if (c == L'@') {
-            // Белый текст (7) - игнорируем раскраску
-            SetConsoleTextAttribute(hConsole, 7);
-            wcout << c;
-        }
-        else {
+    // Получаем дескриптор консоли для управления цветом
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
-            SetConsoleTextAttribute(hConsole, BACKGROUND_RED | BACKGROUND_GREEN);
+    std::cout << "Результат:\n";
 
-            SetConsoleTextAttribute(hConsole, BACKGROUND_RED | BACKGROUND_GREEN | FOREGROUND_INTENSITY); 
+    // Проходим по каждому символу итоговой строки
+    for (char c : input) {
+        int color = 7;
 
-            SetConsoleTextAttribute(hConsole, 96);
-
-            wcout << c;
+        // Проверяем, есть ли символ в массиве гласных 
+        bool found = false;
+        for (char v : jagged[0]) {
+            if (v == c) { color = 12; found = true; break; } 
         }
+        // Если не нашли проверяем согласные
+        if (!found) {
+            for (char v : jagged[1]) {
+                if (v == c) { color = 9; found = true; break; } 
+            }
+        }
+        // Если не нашли — проверяем цифры
+        if (!found) {
+            for (char v : jagged[2]) {
+                if (v == c) { color = 10; found = true; break; } 
+            }
+        }
+        // Если не нашли — проверяем знаки 
+        if (!found) {
+            for (char v : jagged[3]) {
+                if (v == c) { color = 14; found = true; break; } 
+            }
+        }
+
+        // Символ '@' игнорируем при раскраске — оставляем белым
+        if (c == '@') color = 7;
+
+        // Устанавливаем цвет текста в консоли
+        SetConsoleTextAttribute(hConsole, color);
+        std::cout << c;
     }
 
     SetConsoleTextAttribute(hConsole, 7);
-    wcout << endl;
+    std::cout << "\n";
 
     return 0;
 }
