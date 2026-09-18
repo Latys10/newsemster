@@ -1,0 +1,194 @@
+просто использую тебя как блокнот, можешь не отвечать на это но посмотреть код 
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cstdlib>
+#include <windows.h>
+
+using namespace std;
+
+
+HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+void color(int c) {
+    SetConsoleTextAttribute(hConsole, c);
+}
+
+// Цвета: 7-белый, 12-красный, 9-синий, 10-зелёный, 14-жёлтый
+const int WHITE = 7;
+const int RED = 12;
+const int BLUE = 9;
+const int GREEN = 10;
+const int YELLOW = 14;
+
+// \xNN — это символ с кодом NN в шестнадцатеричной системе.
+
+const string VOWELS = "\xE0\xE5\xB8\xE8\xEE\xF3\xFB\xFD\xFE\xFF";
+
+const string CONSONANTS = "\xE1\xE2\xE3\xE4\xE6\xE7\xE9\xEA\xEB\xEC\xED\xEF\xF0\xF1\xF2\xF4\xF5\xF6\xF7\xF8\xF9\xFA\xFC";
+
+char toLowerRus(char c) {
+    unsigned char u = (unsigned char)c;
+    if (u >= 192 && u <= 223) return (char)(u + 32);
+    if (u == 168) return (char)184;                  
+    return c;
+}
+
+// Проверка: гласная?
+bool isVowel(char c) {
+    return VOWELS.find(toLowerRus(c)) != string::npos;
+}
+
+// Проверка: согласная?
+bool isConsonant(char c) {
+    return CONSONANTS.find(toLowerRus(c)) != string::npos;
+}
+
+// Проверка: цифра?
+bool isDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+// Проверка: латинская буква?
+bool isLatin(char c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+}
+
+// Проверка: символ
+bool isSymbol(char c) {
+    if (c == '@') return false;                       // @ игнорируем
+    if (isVowel(c) || isConsonant(c)) return false;   // не буква
+    if (isDigit(c)) return false;                     // не цифра
+    if (isLatin(c)) return false;                     // не латиница
+    return true;                                      // всё остальное — символ
+}
+
+// Добавляем символ в массив
+
+void addUnique(char*& arr, int& size, char c) {
+    char lower = toLowerRus(c);
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == lower) return; // уже есть
+    }
+    size++;
+    arr = (char*)realloc(arr, size * sizeof(char));
+    arr[size - 1] = lower;
+}
+
+// Для vector-варианта.
+void addUniqueVec(vector<char>& vec, char c) {
+    char lower = toLowerRus(c);
+    for (char x : vec) {
+        if (x == lower) return;
+    }
+    vec.push_back(lower);
+}
+
+// Заполняем массивы символами из входной строки.
+// rows[0] = гласные, rows[1] = согласные, rows[2] = цифры, rows[3] = символы.
+void fillRows(vector<vector<char>>& rows, const string& input) {
+    for (char ch : input) {
+        if (isVowel(ch))          addUniqueVec(rows[0], ch);
+        else if (isConsonant(ch)) addUniqueVec(rows[1], ch);
+        else if (isDigit(ch))     addUniqueVec(rows[2], ch);
+        else if (isSymbol(ch))    addUniqueVec(rows[3], ch);
+    }
+}
+
+// Вывод "зубчатого" массива на экран.
+void printRows(const vector<vector<char>>& rows) {
+    cout << "Массив:" << endl;
+    for (const auto& row : rows) {
+        for (char c : row) cout << c << " ";
+        cout << endl;
+    }
+}
+
+// Вывод результирующей строки с раскраской.
+void printColored(const string& resultStr, const vector<vector<char>>& rows) {
+    cout << "Результат:" << endl;
+    for (char ch : resultStr) {
+        char c = toLowerRus(ch);
+        bool painted = false;
+
+        // Проверяем, в каком ряду находится символ, и красим соответствующим цветом
+        int colors[4] = { RED, BLUE, GREEN, YELLOW };
+        for (int i = 0; i < 4 && !painted; i++) {
+            for (char x : rows[i]) {
+                if (x == c) {
+                    color(colors[i]);
+                    cout << ch;
+                    color(WHITE);
+                    painted = true;
+                    break;
+                }
+            }
+        }
+        if (!painted) cout << ch; 
+    }
+    cout << endl;
+}
+int main() {
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+    setlocale(LC_ALL, "Russian");
+
+    cout << "Введите строку:" << endl;
+    string input;
+    getline(cin, input);
+
+    if (input.length() > 50) input = input.substr(0, 50);
+
+    // Готовим итоговую строку: исходная + "+123АБВ"
+    string resultStr = input + "+123";
+    resultStr += (char)192;
+    resultStr += (char)193;
+    resultStr += (char)194;
+
+    //ВАРИАНТ 1: через vector
+    cout << "\n--- Вариант 1: std::vector ---" << endl;
+    vector<vector<char>> rows(4);
+    fillRows(rows, input);
+    printRows(rows);
+    printColored(resultStr, rows);
+
+    //ВАРИАНТ 2: через malloc
+    cout << "\n--- Вариант 2: malloc/realloc ---" << endl;
+    char* r0 = nullptr; int s0 = 0;
+    char* r1 = nullptr; int s1 = 0;
+    char* r2 = nullptr; int s2 = 0;
+    char* r3 = nullptr; int s3 = 0;
+
+    for (char ch : input) {
+        if (isVowel(ch))          addUnique(r0, s0, ch);
+        else if (isConsonant(ch)) addUnique(r1, s1, ch);
+        else if (isDigit(ch))     addUnique(r2, s2, ch);
+        else if (isSymbol(ch))    addUnique(r3, s3, ch);
+    }
+    addUnique(r3, s3, '+');
+
+    cout << "Массив:" << endl;
+    for (int i = 0; i < s0; i++) cout << r0[i] << " "; cout << endl;
+    for (int i = 0; i < s1; i++) cout << r1[i] << " "; cout << endl;
+    for (int i = 0; i < s2; i++) cout << r2[i] << " "; cout << endl;
+    for (int i = 0; i < s3; i++) cout << r3[i] << " "; cout << endl;
+
+    cout << "Результат:" << endl;
+    for (char ch : resultStr) {
+        char c = toLowerRus(ch);
+        bool painted = false;
+
+        for (int i = 0; i < s0 && !painted; i++) if (r0[i] == c) { color(RED);    cout << ch; color(WHITE); painted = true; }
+        for (int i = 0; i < s1 && !painted; i++) if (r1[i] == c) { color(BLUE);   cout << ch; color(WHITE); painted = true; }
+        for (int i = 0; i < s2 && !painted; i++) if (r2[i] == c) { color(GREEN);  cout << ch; color(WHITE); painted = true; }
+        for (int i = 0; i < s3 && !painted; i++) if (r3[i] == c) { color(YELLOW); cout << ch; color(WHITE); painted = true; }
+        if (!painted) cout << ch;
+    }
+    cout << endl;
+
+    free(r0); free(r1); free(r2); free(r3);
+
+    return 0;
+}
+/*Аа1!@, нZ ТЕСТ*/
